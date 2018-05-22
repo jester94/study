@@ -1,0 +1,116 @@
+//@version=3
+
+study(shorttitle="BBAWE", title="Bollinger Awesome Alert R1 by JustUncleL", overlay=true)
+
+// Author: Lawrie Steven
+// Date:   22-Apr-2017
+// Revision: R1
+//
+// Description:
+// ============
+// This indicator is an implementation of the Bollinger Band and Awesome Oscillator
+// scalping system.
+// This technique is for those who want the most simple method that is
+// very effective. It is BEST traded during the busiest trading hours,
+// 3am to 12am EST NY time. This method doesn't work in sideways markets, only in
+// volatile trending markets.
+//
+// Time Frames: 1, 5, 10, 15 ,30 min.
+// Currency pairs: majors.
+//
+// Other Chart indicators:
+// - Add Awesome Oscillator.
+// - Optionally Add Squeeze Indicator.
+//
+// Here's the strategy:
+// --------------------
+// Going LONG:
+// Enter a long position when the black 3 EMA has crossed up through the Bollinger red 
+// middle band MA. At the same time, the Awesome should be approaching or crossing 
+// it's zeroline, going up. This is indicated by "Buy" alert.
+//
+// Going SHORT:
+// Enter a short position when the black 3 EMA has crossed down through the Bollinger red
+// middle band MA. At the same time, the Awesome should be approaching or crossing it's 
+// zero line, going down. This is indicated by the "Sell" Alert.
+// 
+// Take profit:
+// 10-20 pips depending on pair or When Awesome Oscillator turns a different color.
+//
+// HINTS: Best trades tend to occur when price reversing bounce off outer band and 
+// and outside Optional Bollinger Squeeze indication.
+//
+// References:
+// -----------
+// - https://www.forexstrategiesresources.com/scalping-forex-strategies-iii/337-bollinger-bands-and-chaos-awesome-scalping-system
+// - "Squeeze Momentum Indicator [LazyBear]"
+//
+
+// === INPUTS ===
+
+// Bollinger Bands Inputs
+bb_use_ema = input(false, title="Use EMA for Bollinger Band")
+bb_length = input(20, minval=1, title="Bollinger Length")
+bb_source = input(close, title="Bollinger Source")
+bb_mult = input(2.0, title="Base Multiplier", minval=0.5, maxval=10)
+// EMA inputs
+fast_ma_len = input(3, title="Fast EMA length", minval=2)
+// Awesome Inputs
+nLengthSlow = input(34, minval=1, title="Awesome Length Slow")
+nLengthFast = input(5, minval=1, title="Awesome Length Fast")
+
+// === /INPUTS ===
+
+// === SERIES ===
+
+// Breakout Indicator Inputs
+bb_basis = bb_use_ema ? ema(bb_source, bb_length) : sma(bb_source, bb_length)
+fast_ma  = ema(bb_source, fast_ma_len)
+
+// Deviation
+// * I'm sure there's a way I could write some of this cleaner, but meh.
+dev = stdev(bb_source, bb_length)
+bb_dev_inner = bb_mult * dev
+
+// Upper bands
+inner_high = bb_basis + bb_dev_inner
+// Lower Bands
+inner_low = bb_basis - bb_dev_inner
+
+// Calculate Awesome Oscillator
+xSMA1_hl2 = sma(hl2, nLengthFast)
+xSMA2_hl2 = sma(hl2, nLengthSlow)
+xSMA1_SMA2 = xSMA1_hl2 - xSMA2_hl2
+// Calculate direction of AO
+AO = xSMA1_SMA2>=0? xSMA1_SMA2 > xSMA1_SMA2[1] ? 1 : 2 : xSMA1_SMA2 > xSMA1_SMA2[1] ? -1 : -2
+
+// === /SERIES ===
+
+// === PLOTTING ===
+
+// plot BB basis
+plot(bb_basis, title="Basis Line", color=red, transp=10, linewidth=2)
+// plot BB upper and lower bands
+ubi = plot(inner_high, title="Upper Band Inner", color=blue, transp=10, linewidth=1)
+lbi = plot(inner_low, title="Lower Band Inner", color=blue, transp=10, linewidth=1)
+// center BB channel fill
+fill(ubi, lbi, title="Center Channel Fill", color=silver, transp=90)
+
+// plot fast ma
+plot(fast_ma, title="Fast EMA", color=black, transp=10, linewidth=2)
+
+// Calc breakouts
+break_down =   crossunder(fast_ma, bb_basis) and close < bb_basis and abs(AO)==2
+break_up   =  crossover(fast_ma, bb_basis) and close > bb_basis and abs(AO)==1
+
+// Show Break Alerts
+plotshape(break_down, title="Breakout Down", style=shape.arrowdown, location=location.abovebar, size=size.auto, text="Sell", color=red, transp=0)
+plotshape(break_up, title="Breakout Up", style=shape.arrowup, location=location.belowbar, size=size.auto, text="Buy", color=green, transp=0)
+
+// === /PLOTTING ===
+
+// Send alert to TV alarm sub-system
+alertcondition(break_down or break_up,title="BBAWE Alert",message="BBAWE Alert")
+
+
+// eof
